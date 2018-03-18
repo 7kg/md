@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>record movie</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style type="text/css">
+        video {
+    width: 320px;
+    height: 240px;
+}
+    </style>
+</head>
+<body>
+    <video id="preview" autoplay></video>
+    <button id="btnRecord">Record Start</button><br>
+    <a id="dlLink" style="display:none">Download record file via &lt;a&gt;</a><br>
+    <button id="btnSave" style="display:none">Save record file via dialog.showSaveDialog()</button>
+    <script type="text/javascript">
+        let localStream;
+let recorder;
+let recordChunk
+const { remote: { dialog } } = require('electron');
+const fs = require('fs');
+
+
+const {desktopCapturer} = require('electron')
+  
+        desktopCapturer.getSources({types: ['window', 'screen']}, (error, sources) => {
+            if (error) throw error
+            for (let i = 0; i < sources.length; ++i) {
+              if (sources[i].name === 'Screen 1') {
+                navigator.mediaDevices.getUserMedia({
+                  audio: false,
+                  video: {
+                    mandatory: {
+                      chromeMediaSource: 'desktop',
+                      chromeMediaSourceId: sources[i].id,
+                      minWidth: 1280,
+                      maxWidth: 1280,
+                      minHeight: 720,
+                      maxHeight: 720
+                    }
+                  }
+                })
+                .then(stream => {
+                    localStream = stream;
+                    preview.srcObject = stream;
+                })
+                .catch((e) => handleError(e))
+                return
+              }
+            }
+        })
+
+btnRecord.onclick = function() {
+    if (this.textContent === 'Record Start') {
+        recorder = new MediaRecorder(localStream);
+        recorder.ondataavailable = e => {
+            recordChunk.push(e.data);
+        };
+        recordChunk = [];
+        dlLink.style.display = 'none';
+        btnSave.style.display = 'none';
+        recorder.start();
+        this.textContent = 'Record Stop';
+    } else {
+        recorder.stop();
+        let blob = new Blob(recordChunk);
+        let dlURL = URL.createObjectURL(blob);
+        dlLink.href = dlURL;
+        let dt = new Date();
+        dlLink.download = `rec_${[dt.getFullYear(), dt.getMonth() + 1, dt.getDate(), dt.getHours(), dt.getMinutes(), dt.getSeconds(), dt.getMilliseconds()].map(val => ('0' + val).slice(-2))}.webm`;
+        dlLink.style.display = '';
+        btnSave.style.display = '';
+        this.textContent = 'Record Start';
+    }
+};
+
+btnSave.onclick = _ => {
+    const blob = new Blob(recordChunk);
+    let fr = new FileReader();
+    fr.onload = _ => {
+        showSaveDialog(fr.result);
+    }
+    fr.readAsArrayBuffer(blob);
+}
+
+function showSaveDialog(arrayBuffer) {
+    let buffer = new Buffer(arrayBuffer);
+    let dt = new Date();
+    dialog.showSaveDialog({
+        filters: [{
+            name: `webm file`,
+            extensions: ['webm']
+        }]
+    }, fileName => {
+        if (fileName) {
+            fs.writeFile(fileName, buffer, function(err) {
+                if (err) {
+                    alert("An error ocurred creating the file " + err.message);
+                }
+            });
+        }
+    });
+}
+    </script>
+</body>
+</html>

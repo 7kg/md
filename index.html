@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" id="clickThroughElement">
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+    <style type="text/css">
+        html{
+            background-color: rgba(0,0,0,.5);
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div style="-webkit-app-region: drag">
+        可拖拽
+    </div>
+    111222
+    <div id="ss"></div>
+    <a id="download">Download</a>
+<button id="stop">Stop</button>
+    <video></video>
+    <script type="text/javascript">
+        let win = require('electron').remote.getCurrentWindow()
+
+        document.getElementById('ss').innerText = JSON.stringify({a:1});
+
+        const {desktopCapturer} = require('electron')
+  
+        desktopCapturer.getSources({types: ['window', 'screen']}, (error, sources) => {
+            if (error) throw error
+            for (let i = 0; i < sources.length; ++i) {
+              if (sources[i].name === 'Screen 1') {
+                navigator.mediaDevices.getUserMedia({
+                  audio: false,
+                  video: {
+                    mandatory: {
+                      chromeMediaSource: 'desktop',
+                      chromeMediaSourceId: sources[i].id,
+                      minWidth: 1280,
+                      maxWidth: 1280,
+                      minHeight: 720,
+                      maxHeight: 720
+                    }
+                  }
+                })
+                .then((stream) => handleSuccess(stream))
+                .catch((e) => handleError(e))
+                return
+              }
+            }
+        })
+    
+
+    let shouldStop = false;
+  let stopped = false;
+  const downloadLink = document.getElementById('download');
+  const stopButton = document.getElementById('stop');
+
+  stopButton.addEventListener('click', function() {
+    shouldStop = true;
+  })
+        let shouldStop = false;
+  let stopped = false;
+  const downloadLink = document.getElementById('download');
+  const stopButton = document.getElementById('stop');
+
+  stopButton.addEventListener('click', function() {
+    shouldStop = true;
+  })
+
+  var handleSuccess = function(stream) {
+    const options = {mimeType: 'video/webm'};
+    const recordedChunks = [];
+    const mediaRecorder = new MediaRecorder(stream, options);
+
+    mediaRecorder.addEventListener('dataavailable', function(e) {
+      if (e.data.size > 0) {
+        recordedChunks.push(e.data);
+      }
+
+      if(shouldStop === true && stopped === false) {
+        mediaRecorder.stop();
+        stopped = true;
+      }
+    });
+
+    mediaRecorder.addEventListener('stop', function() {
+      downloadLink.href = URL.createObjectURL(new Blob(recordedChunks));
+      downloadLink.download = 'acetest.webm';
+    });
+
+    mediaRecorder.start();
+  };
+
+
+        function handleError (e) {
+            console.log(e)
+        }
+        // const {remote} = require('electron')
+        // const {Menu, MenuItem} = remote
+
+        // const menu = new Menu()
+        // menu.append(new MenuItem({label: 'MenuItem1', click() { console.log('item 1 clicked') }}))
+        // menu.append(new MenuItem({type: 'separator'}))
+        // menu.append(new MenuItem({label: 'MenuItem2', type: 'checkbox', checked: true}))
+
+        // window.addEventListener('contextmenu', (e) => {
+        //     e.preventDefault()
+        //     menu.popup(remote.getCurrentWindow())
+        // }, false)
+    </script>
+</body>
+</html>
